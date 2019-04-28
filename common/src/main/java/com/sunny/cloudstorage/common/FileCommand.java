@@ -5,6 +5,5 @@ public enum FileCommand {
     DOWNLOAD,
     SEND,
     SEND_PARTIAL_DATA,
-    SEND_PARTIAL_DATA_END,
     DELETE
 }

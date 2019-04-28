@@ -6,7 +6,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 
-import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,8 +16,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class MainHandler extends ChannelInboundHandlerAdapter {
-
-    private ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -45,10 +42,6 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                         break;
                     case SEND_PARTIAL_DATA:
                         savePartialDataOnServer(fr);
-                        break;
-                    case SEND_PARTIAL_DATA_END:
-                        savePartialDataEndOnServer(fr);
-                        listFiles(ctx);
                         break;
                 }
             }
@@ -82,21 +75,19 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void savePartialDataOnServer(FileRequest fr) {
         FileMessage fm = fr.getFileMessage();
-        Utils.processBytes(fm, baos, "server_storage/");
+        Utils.processBytes(fm, "server_storage/");
     }
 
-    private void savePartialDataEndOnServer(FileRequest fr) {
-        FileMessage fm = fr.getFileMessage();
-        String path = "server_storage/" + fm.getFilename();
-        try {
-            baos.write(fm.getData(), 0, fm.getData().length);
-            Files.write(Paths.get(path), baos.toByteArray(),  StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-            baos.reset();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-    }
+//    private void savePartialDataEndOnServer(FileRequest fr) {
+//        FileMessage fm = fr.getFileMessage();
+//        String path = "server_storage/" + fm.getFilename();
+//        try {
+//            Files.write(Paths.get(path), fm.getData(), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//    }
 
     private void listFiles(ChannelHandlerContext ctx) {
         ArrayList<String> filesList = new ArrayList<>();
@@ -111,13 +102,14 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     }
 
-    private void downloadFile(ChannelHandlerContext ctx, String fileName ) throws IOException {
+    private void downloadFile(ChannelHandlerContext ctx, String fileName) throws IOException {
         Path path = Paths.get("server_storage/" + fileName);
         if (Files.exists(path)) {
             if (Files.size(path) > Constants.FRAME_SIZE) {
+                ctx.writeAndFlush(new FileRequest(FileCommand.DELETE, fileName));
                 sendDataFrames(ctx, path);
-            }
-            else {
+                ctx.writeAndFlush(new FileRequest(FileCommand.LIST_FILES));
+            } else {
                 FileMessage fm = new FileMessage(path);
                 ctx.writeAndFlush(fm);
             }
@@ -132,30 +124,23 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void sendDataFrames(ChannelHandlerContext ctx, Path path) throws IOException {
         byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
+
+        FileMessage fileMessage = new FileMessage(path, byteBuf, 1);
+        FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
+
         FileInputStream fis = new FileInputStream(path.toFile());
-        byte[] fileBytesBuffer = new byte[Constants.FILE_CHUNK_SIZE];
-        int read = 0;
-        while((read = fis.read(fileBytesBuffer)) > 0) {
-            if (read < Constants.FILE_CHUNK_SIZE ) {
-                fileBytesBuffer = Arrays.copyOf(fileBytesBuffer, read);
+        int read;
+        while ((read = fis.read(byteBuf)) > 0) {
+            if (read < Constants.FRAME_CHUNK_SIZE) {
+                byteBuf = Arrays.copyOf(byteBuf, read);
             }
-            byteBuf = Arrays.copyOf(byteBuf, Constants.FRAME_CHUNK_SIZE);
-
-            for (int i = 0; i < fileBytesBuffer.length; i += Constants.FRAME_CHUNK_SIZE) {
-                if (fileBytesBuffer.length - i < Constants.FRAME_CHUNK_SIZE) {
-                    byteBuf = Arrays.copyOf(byteBuf, fileBytesBuffer.length - i);
-                    System.arraycopy(fileBytesBuffer, i, byteBuf, 0, fileBytesBuffer.length - i);
-                }
-                else {
-                    System.arraycopy(fileBytesBuffer, i, byteBuf, 0, Constants.FRAME_CHUNK_SIZE);
-                }
-                ctx.writeAndFlush(new FileRequest(FileCommand.SEND_PARTIAL_DATA, new FileMessage(path, byteBuf)));
-            }
-
+            ctx.writeAndFlush(fileRequest);
+            fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
         }
 
-        byteBuf = Arrays.copyOf(byteBuf, 0);
-        ctx.writeAndFlush(new FileRequest(FileCommand.SEND_PARTIAL_DATA_END, new FileMessage(path, byteBuf)));
+        fis.close();
 
     }
-}
+
+    }
+

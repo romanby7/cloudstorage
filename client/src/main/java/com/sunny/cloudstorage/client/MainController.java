@@ -9,7 +9,6 @@ import javafx.fxml.Initializable;
 import javafx.scene.control.ListView;
 import javafx.stage.FileChooser;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -25,7 +24,6 @@ import java.util.ResourceBundle;
 public class MainController implements Initializable {
 
     final private FileChooser fileChooser = new FileChooser();
-    private ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
     @FXML
     ListView<String> filesListServer;
@@ -50,8 +48,21 @@ public class MainController implements Initializable {
                         refreshServerFilesList(flm.getFilesList());
                     }
                     if (am instanceof FileRequest) {
-                        receiveFrames((FileRequest) am);
+                        FileRequest fr = (FileRequest) am;
+                        switch (fr.getFileCommand()) {
+                            case DELETE:
+                                deleteFile(fr.getFilename());
+                                break;
+                            case SEND_PARTIAL_DATA:
+                                receiveFrames(fr);
+                                //refreshLocalFilesList();
+                                break;
+                            case LIST_FILES:
+                                refreshLocalFilesList();
+                                break;
+                        }
                     }
+
                 }
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
@@ -65,15 +76,14 @@ public class MainController implements Initializable {
         Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
     }
 
-    private void receiveFrames(FileRequest am) throws IOException {
+    private void receiveFrames(FileRequest fm) throws IOException {
 
-        Utils.processBytes(am.getFileMessage(), baos, "client_storage/");
-        if (am.getFileCommand() == FileCommand.SEND_PARTIAL_DATA_END ) {
-            Path path = Paths.get("client_storage/" + am.getFileMessage().getFilename());
-            Files.write(path, baos.toByteArray(), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-            baos.reset();
-            refreshLocalFilesList();
-        }
+        Utils.processBytes(fm.getFileMessage(), "client_storage/");
+//        if (fm.getFileCommand() == FileCommand.SEND_PARTIAL_DATA_END ) {
+//            Path path = Paths.get("client_storage/" + fm.getFileMessage().getFilename());
+//            Files.write(path, fm.getFileMessage().getData(), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+//            refreshLocalFilesList();
+//        }
     }
 
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
@@ -94,6 +104,7 @@ public class MainController implements Initializable {
                 if ( fileSize > Constants.FRAME_SIZE ) {
                     Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
                     sendDataFrames(path);
+                    Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
                 }
                 else {
                     Network.sendMsg(new FileRequest(FileCommand.SEND, new FileMessage(path)));
@@ -106,32 +117,23 @@ public class MainController implements Initializable {
     }
 
     private void sendDataFrames(Path path) throws IOException {
-        byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
 
+        byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
         FileInputStream fis = new FileInputStream(path.toFile());
-        byte[] fileBytesBuffer = new byte[Constants.FILE_CHUNK_SIZE];
         int read = 0;
-        while((read = fis.read(fileBytesBuffer)) > 0)
-        {
-            if (read < Constants.FILE_CHUNK_SIZE ) {
-                fileBytesBuffer = Arrays.copyOf(fileBytesBuffer, read);
+        FileMessage fileMessage = new FileMessage(path, byteBuf, 1);
+        FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
+
+        while((read = fis.read(byteBuf)) > 0) {
+            if (read < Constants.FRAME_CHUNK_SIZE ) {
+                byteBuf = Arrays.copyOf(byteBuf, read);
             }
-            for (int i = 0; i < fileBytesBuffer.length; i += Constants.FRAME_CHUNK_SIZE) {
-                if (fileBytesBuffer.length - i < Constants.FRAME_CHUNK_SIZE) {
-                    byteBuf = new byte[fileBytesBuffer.length - i];
-                    System.arraycopy(fileBytesBuffer, i, byteBuf, 0, fileBytesBuffer.length - i);
-                    Network.sendMsg(new FileRequest(FileCommand.SEND_PARTIAL_DATA_END, new FileMessage(path, byteBuf)));
-                }
-                else {
-                    System.arraycopy(fileBytesBuffer, i, byteBuf, 0, Constants.FRAME_CHUNK_SIZE);
-                    Network.sendMsg(new FileRequest(FileCommand.SEND_PARTIAL_DATA, new FileMessage(path, byteBuf)));
-                }
-            }
+            Network.sendMsg(fileRequest);
+            fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
 
         }
 
         fis.close();
-
     }
 
     private void refreshLocalFilesList() {
@@ -178,13 +180,25 @@ public class MainController implements Initializable {
 
     public void pressOnDeleteData(ActionEvent actionEvent) {
         String fileName = filesListClient.getSelectionModel().getSelectedItem();
-        if (fileName != null) {
-            try {
-                Files.delete(Paths.get("client_storage/" + fileName));
-                refreshLocalFilesList();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        deleteFile(fileName);
+
+    }
+
+    private void deleteFile(String fileName) {
+        if (fileName == null) {
+            return;
+        }
+
+        Path path = Paths.get("client_storage/" + fileName);
+        if (!Files.exists(path)) {
+            return;
+        }
+
+        try {
+            Files.delete(path);
+            refreshLocalFilesList();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
     }
