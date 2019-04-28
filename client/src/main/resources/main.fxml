@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane fx:id="rootNode" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="800.0" prefWidth="700.0" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.sunny.cloudstorage.client.MainController">
+   <children>
+      <SplitPane dividerPositions="0.5" orientation="VERTICAL" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0" AnchorPane.rightAnchor="0" AnchorPane.topAnchor="0">
+        <items>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="100.0" prefWidth="160.0">
+               <children>
+                  <ListView fx:id="filesListServer" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="30.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                  <AnchorPane layoutY="367.0" maxHeight="-Infinity" minHeight="-Infinity" prefHeight="30.0" prefWidth="698.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                     <children>
+                        <Button onAction="#pressOnDeleteOnServerBtn" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Удалить" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="120.0" />
+                        <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#pressOnDownloadBtn" prefHeight="29.0" prefWidth="100.0" text="Скачать" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0.0" />
+                     </children>
+                  </AnchorPane>
+               </children>
+          </AnchorPane>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="185.0" prefWidth="557.0">
+               <children>
+                  <ListView fx:id="filesListClient" prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="30.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                  <AnchorPane maxHeight="-Infinity" minHeight="-Infinity" prefHeight="30.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+                     <children>
+                        <Button onAction="#pressOnAddData" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Добавить" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="240.0" />
+                        <Button onAction="#pressOnDeleteData" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Удалить" AnchorPane.bottomAnchor="0.0" />
+                        <Button onAction="#pressOnSendData" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Отправить" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="120.0" />
+                     </children>
+                  </AnchorPane>
+               </children></AnchorPane>
+        </items>
+      </SplitPane>
+   </children>
+</AnchorPane>
