@@ -17,6 +17,10 @@ public class FileMessage extends AbstractMessage {
         return data;
     }
 
+    public void setData(byte[] data) {
+        this.data = data;
+    }
+
     public int getMessageNumber() {
         return messageNumber;
     }

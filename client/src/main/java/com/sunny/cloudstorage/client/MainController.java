@@ -55,14 +55,12 @@ public class MainController implements Initializable {
                                 break;
                             case SEND_PARTIAL_DATA:
                                 receiveFrames(fr);
-                                //refreshLocalFilesList();
                                 break;
                             case LIST_FILES:
                                 refreshLocalFilesList();
                                 break;
                         }
                     }
-
                 }
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
@@ -77,13 +75,7 @@ public class MainController implements Initializable {
     }
 
     private void receiveFrames(FileRequest fm) throws IOException {
-
         Utils.processBytes(fm.getFileMessage(), "client_storage/");
-//        if (fm.getFileCommand() == FileCommand.SEND_PARTIAL_DATA_END ) {
-//            Path path = Paths.get("client_storage/" + fm.getFileMessage().getFilename());
-//            Files.write(path, fm.getFileMessage().getData(), StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-//            refreshLocalFilesList();
-//        }
     }
 
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
@@ -103,7 +95,7 @@ public class MainController implements Initializable {
                 long fileSize = Files.size(path);
                 if ( fileSize > Constants.FRAME_SIZE ) {
                     Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
-                    sendDataFrames(path);
+                    sendClientDataFrames(path);
                     Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
                 }
                 else {
@@ -116,7 +108,7 @@ public class MainController implements Initializable {
         }
     }
 
-    private void sendDataFrames(Path path) throws IOException {
+    private void sendClientDataFrames(Path path) throws IOException {
 
         byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
         FileInputStream fis = new FileInputStream(path.toFile());
@@ -127,6 +119,7 @@ public class MainController implements Initializable {
         while((read = fis.read(byteBuf)) > 0) {
             if (read < Constants.FRAME_CHUNK_SIZE ) {
                 byteBuf = Arrays.copyOf(byteBuf, read);
+                fileMessage.setData(byteBuf);
             }
             Network.sendMsg(fileRequest);
             fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
