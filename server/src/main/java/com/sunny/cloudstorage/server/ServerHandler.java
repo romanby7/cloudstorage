@@ -7,6 +7,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,7 +16,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class MainHandler extends ChannelInboundHandlerAdapter {
+public class ServerHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -50,6 +51,8 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+
+
     private void sendFileToClient(ChannelHandlerContext ctx, String fileName) throws IOException {
         Path path = Paths.get("server_storage/" + fileName);
         if (Files.exists(path)) {
@@ -77,13 +80,16 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                 fileMessage.setData(byteBuf);
             }
             ctx.writeAndFlush(fileRequest);
+            System.out.println("server_storage/" + path.getFileName() +  ": " + fileMessage.getMessageNumber());
             fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
         }
+
+        ctx.flush();
 
         System.out.println("server_storage/" + path.getFileName() +  ", server last frame number: " + fileMessage.getMessageNumber());
         System.out.println("server_storage/" + path.getFileName() +  ": closing file stream.");
 
-        fis.close();
+        //fis.close();
     }
 
     private void deleteFileOnServer(FileRequest fr) {
@@ -110,7 +116,32 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
     private void savePartialDataOnServer(FileRequest fr) {
         FileMessage fm = fr.getFileMessage();
-        Utils.processBytes(fm, "server_storage/");
+        processBytes(fm, "server_storage/");
+    }
+
+    private void processBytes(FileMessage fm, String pathPart) {
+        Path path = Paths.get(pathPart + fm.getFilename());
+
+        boolean append = fm.getMessageNumber() != 1;
+        try (FileOutputStream fileOutputStream = new FileOutputStream(path.toFile(), append)) {
+            fileOutputStream.write(fm.getData());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(pathPart + path.getFileName() + ": " + fm.getMessageNumber());
+
+//        try {
+//            if (fm.getMessageNumber() == 1) {
+//                Files.write(path, data, StandardOpenOption.CREATE_NEW);
+//            } else {
+//                Files.write(path, data, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
+//            }
+//        }
+//        catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
     }
 
     private void listFiles(ChannelHandlerContext ctx) {
@@ -128,7 +159,8 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
 
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        System.out.println(cause.getMessage());
         cause.printStackTrace();
         ctx.close();
     }

@@ -1,7 +1,10 @@
 package com.sunny.cloudstorage.client;
 
 
-import com.sunny.cloudstorage.common.*;
+import com.sunny.cloudstorage.common.Constants;
+import com.sunny.cloudstorage.common.FileCommand;
+import com.sunny.cloudstorage.common.FileMessage;
+import com.sunny.cloudstorage.common.FileRequest;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -11,12 +14,12 @@ import javafx.stage.FileChooser;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -24,6 +27,8 @@ import java.util.ResourceBundle;
 public class MainController implements Initializable {
 
     final private FileChooser fileChooser = new FileChooser();
+
+    Client client;
 
     @FXML
     ListView<String> filesListServer;
@@ -33,55 +38,81 @@ public class MainController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        Network.start();
+
+
+        client = new Client();
+
+        //Network.start();
+
         Thread t = new Thread(() -> {
             try {
                 while (true) {
-                    AbstractMessage am = Network.readObject();
-                    if (am instanceof FileMessage) {
-                        FileMessage fm = (FileMessage) am;
-                        Files.write(Paths.get("client_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
-                        refreshLocalFilesList();
-                    }
-                    if (am instanceof FilesListMessage) {
-                        FilesListMessage flm = (FilesListMessage) am;
-                        refreshServerFilesList(flm.getFilesList());
-                    }
-                    if (am instanceof FileRequest) {
-                        FileRequest fr = (FileRequest) am;
-                        switch (fr.getFileCommand()) {
-                            case DELETE:
-                                deleteFile(fr.getFilename());
-                                break;
-                            case SEND_PARTIAL_DATA:
-                                receiveFrames(fr);
-                                break;
-                            case LIST_FILES:
-                                refreshLocalFilesList();
-                                break;
-                        }
-                    }
+
+                    client.start(this);
+
+                    //                    AbstractMessage am = Network.readObject();
+//                    if (am instanceof FileMessage) {
+//                        FileMessage fm = (FileMessage) am;
+//                        Files.write(Paths.get("client_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
+//                        refreshLocalFilesList();
+//                    }
+//                    if (am instanceof FilesListMessage) {
+//                        FilesListMessage flm = (FilesListMessage) am;
+//                        refreshServerFilesList(flm.getFilesList());
+//                    }
+//                    if (am instanceof FileRequest) {
+//                        FileRequest fr = (FileRequest) am;
+//                        switch (fr.getFileCommand()) {
+//                            case DELETE:
+//                                deleteFile(fr.getFilename());
+//                                break;
+//                            case SEND_PARTIAL_DATA:
+//                                receiveFramesFromServer(fr);
+//                                break;
+//                            case LIST_FILES:
+//                                refreshLocalFilesList();
+//                                break;
+//                        }
+//                    }
                 }
-            } catch (ClassNotFoundException | IOException e) {
+            } catch (InterruptedException e ) {
                 e.printStackTrace();
-            } finally {
-                Network.stop();
+            }
+            finally {
+                client.stop();
             }
         });
         t.setDaemon(true);
         t.start();
         refreshLocalFilesList();
-        Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
+
+//        client.getObjectEncoderCtx().writeAndFlush(new FileRequest(FileCommand.LIST_FILES));
     }
 
-    private void receiveFrames(FileRequest fm) throws IOException {
-        Utils.processBytes(fm.getFileMessage(), "client_storage/");
+    void receiveFramesFromServer(FileRequest fm) throws IOException {
+        processBytes(fm.getFileMessage(), "client_storage/");
+    }
+
+
+    private void processBytes(FileMessage fm, String pathPart) {
+        Path path = Paths.get(pathPart + fm.getFilename());
+
+        boolean append = fm.getMessageNumber() != 1;
+        try (FileOutputStream fileOutputStream = new FileOutputStream(path.toFile(), append)) {
+            fileOutputStream.write(fm.getData());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(pathPart + path.getFileName() + ": " + fm.getMessageNumber());
+
+
     }
 
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
-            Network.sendMsg(new FileRequest(FileCommand.DOWNLOAD, fileName));
+            client.getClientHandlerCtx().writeAndFlush(new FileRequest(FileCommand.DOWNLOAD, fileName));
         }
 
     }
@@ -94,13 +125,15 @@ public class MainController implements Initializable {
             try {
                 long fileSize = Files.size(path);
                 if ( fileSize > Constants.FRAME_SIZE ) {
-                    Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
+                    client.getClientHandlerCtx().writeAndFlush(new FileRequest(FileCommand.DELETE, fileName));
                     sendClientDataFrames(path);
-                    Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
+
                 }
                 else {
-                    Network.sendMsg(new FileRequest(FileCommand.SEND, new FileMessage(path)));
+                    //client.getObjectEncoderCtx().writeAndFlush(new FileRequest(FileCommand.SEND, new FileMessage(path)));
+                    client.getClientHandlerCtx().writeAndFlush(new FileRequest(FileCommand.SEND, new FileMessage(path)));
                 }
+                client.getClientHandlerCtx().writeAndFlush(new FileRequest(FileCommand.LIST_FILES));
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -121,7 +154,7 @@ public class MainController implements Initializable {
                 byteBuf = Arrays.copyOf(byteBuf, read);
                 fileMessage.setData(byteBuf);
             }
-            Network.sendMsg(fileRequest);
+            client.getClientHandlerCtx().writeAndFlush(fileRequest);
             fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
 
         }
@@ -129,7 +162,7 @@ public class MainController implements Initializable {
         fis.close();
     }
 
-    private void refreshLocalFilesList() {
+    void refreshLocalFilesList() {
         if (Platform.isFxApplicationThread()) {
             updateFilesList();
         } else {
@@ -161,7 +194,7 @@ public class MainController implements Initializable {
 
     }
 
-    private void refreshServerFilesList(List<String> list) {
+    void refreshServerFilesList(List<String> list) {
         if (Platform.isFxApplicationThread()) {
             updateServerFilesList(list);
         } else {
@@ -177,7 +210,7 @@ public class MainController implements Initializable {
 
     }
 
-    private void deleteFile(String fileName) {
+    void deleteFile(String fileName) {
         if (fileName == null) {
             return;
         }
@@ -213,7 +246,7 @@ public class MainController implements Initializable {
     public void pressOnDeleteOnServerBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
-            Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
+            client.getClientHandlerCtx().writeAndFlush(new FileRequest(FileCommand.DELETE, fileName));
         }
     }
 }
