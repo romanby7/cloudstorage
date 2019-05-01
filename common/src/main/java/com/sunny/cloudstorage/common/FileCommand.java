@@ -5,5 +5,7 @@ public enum FileCommand {
     DOWNLOAD,
     SEND,
     SEND_PARTIAL_DATA,
+    SEND_FILE_CHUNK,
+    FILE_CHUNK_COMPLETED,
     DELETE
 }

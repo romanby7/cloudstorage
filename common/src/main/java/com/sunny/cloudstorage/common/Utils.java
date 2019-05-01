@@ -15,7 +15,7 @@ public final class Utils {
         System.out.println(pathPart + path.getFileName() + ": " + fm.getMessageNumber());
 
         try {
-            if (fm.getMessageNumber() == 1) {
+            if (fm.getOffset() == 0L) {
                 Files.write(path, data, StandardOpenOption.CREATE_NEW);
             } else {
                 Files.write(path, data, StandardOpenOption.WRITE, StandardOpenOption.APPEND);

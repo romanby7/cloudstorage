@@ -8,6 +8,7 @@ public class FileMessage extends AbstractMessage {
     private String filename;
     private byte[] data;
     private int messageNumber;
+    private long offset;
 
     public String getFilename() {
         return filename;
@@ -29,14 +30,29 @@ public class FileMessage extends AbstractMessage {
         this.messageNumber = messageNumber;
     }
 
+    public long getOffset() {
+        return offset;
+    }
+
     public FileMessage(Path path) throws IOException {
         filename = path.getFileName().toString();
         data = Files.readAllBytes(path);
     }
 
     public FileMessage(Path path, byte[] data, int messageNumber) {
-        this.filename = path.getFileName().toString();;
+        this.filename = path.getFileName().toString();
         this.data = data;
         this.messageNumber = messageNumber;
+    }
+
+    public FileMessage(String filename, byte[] data, long offset) {
+        this.filename = filename;
+        this.data = data;
+        this.offset = offset;
+    }
+
+    public FileMessage(String filename, long offset) {
+        this.filename = filename;
+        this.offset = offset;
     }
 }

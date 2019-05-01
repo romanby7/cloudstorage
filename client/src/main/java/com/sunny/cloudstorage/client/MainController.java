@@ -12,6 +12,7 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -59,6 +60,12 @@ public class MainController implements Initializable {
                             case LIST_FILES:
                                 refreshLocalFilesList();
                                 break;
+                            case SEND_FILE_CHUNK:
+                                saveFileChunk(fr);
+                                break;
+                            case FILE_CHUNK_COMPLETED:
+                                refreshLocalFilesList();
+                                break;
                         }
                     }
                 }
@@ -74,6 +81,30 @@ public class MainController implements Initializable {
         Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
     }
 
+    private void saveFileChunk(FileRequest fr)  {
+
+        FileMessage fm = fr.getFileMessage();
+        String fileName = fm.getFilename();
+        long offset = fm.getOffset();
+        byte[] data = fm.getData();
+
+        Path path = Paths.get("client_storage/" + fileName);
+        try {
+            RandomAccessFile raf = new RandomAccessFile(path.toFile(), "rw");
+            raf.seek(offset);
+            raf.write(data);
+            raf.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        FileMessage fileMessage = new FileMessage(fileName,offset + Constants.FRAME_CHUNK_SIZE);
+        FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK, fileMessage);
+
+        Network.sendMsg(fileRequest);
+
+    }
+
     private void receiveFrames(FileRequest fm) throws IOException {
         Utils.processBytes(fm.getFileMessage(), "client_storage/");
     }
@@ -81,9 +112,11 @@ public class MainController implements Initializable {
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
-            Network.sendMsg(new FileRequest(FileCommand.DOWNLOAD, fileName));
-        }
+            FileMessage fm = new FileMessage(fileName, 0L);
+            FileRequest fr = new FileRequest(FileCommand.SEND_FILE_CHUNK, fm);
 
+            Network.sendMsg(fr);
+        }
     }
 
     public void pressOnSendData(ActionEvent actionEvent) {

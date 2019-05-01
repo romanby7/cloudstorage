@@ -12,7 +12,7 @@
                   <AnchorPane layoutY="367.0" maxHeight="-Infinity" minHeight="-Infinity" prefHeight="30.0" prefWidth="698.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
                      <children>
                         <Button onAction="#pressOnDeleteOnServerBtn" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Удалить" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="120.0" />
-                        <Button maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#pressOnDownloadBtn" prefHeight="29.0" prefWidth="100.0" text="Скачать" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0.0" />
+                        <Button onAction="#pressOnDownloadBtn" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" prefHeight="29.0" prefWidth="100.0" text="Скачать" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0.0" />
                      </children>
                   </AnchorPane>
                </children>

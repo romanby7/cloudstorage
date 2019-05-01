@@ -9,6 +9,10 @@ public class FileRequest extends AbstractMessage {
         return fileMessage;
     }
 
+    public void setFileMessage(FileMessage fileMessage) {
+        this.fileMessage = fileMessage;
+    }
+
     public String getFilename() {
         return filename;
     }
