@@ -28,7 +28,7 @@ public class Server {
                             socketChannel.pipeline().addLast(
                                     new ObjectDecoder(Constants.FRAME_SIZE, ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
-                                    new MainHandler()
+                                    new ServerHandler()
                             );
                         }
                     })

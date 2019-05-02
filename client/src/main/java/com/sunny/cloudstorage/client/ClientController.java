@@ -1,6 +1,5 @@
 package com.sunny.cloudstorage.client;
 
-
 import com.sunny.cloudstorage.common.*;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -10,7 +9,6 @@ import javafx.scene.control.ListView;
 import javafx.stage.FileChooser;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URL;
@@ -18,13 +16,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
 
-public class MainController implements Initializable {
+public class ClientController implements Initializable {
 
     final private FileChooser fileChooser = new FileChooser();
+    final private Utils utils = new Utils();
 
     @FXML
     ListView<String> filesListServer;
@@ -54,18 +52,20 @@ public class MainController implements Initializable {
                             case DELETE:
                                 deleteFile(fr.getFilename());
                                 break;
-                            case SEND_PARTIAL_DATA:
-                                receiveFrames(fr);
-                                break;
                             case LIST_FILES:
                                 refreshLocalFilesList();
                                 break;
-                            case SEND_FILE_CHUNK:
-                                saveFileChunk(fr);
+                            case SEND_FILE_CHUNK_TO_CLIENT:
+                                saveFileChunkOnClient(fr);
                                 break;
                             case FILE_CHUNK_COMPLETED:
                                 refreshLocalFilesList();
                                 break;
+                            case SEND_FILE_CHUNK_TO_SERVER:
+                                sendFileChunksToServer(fr);
+                                break;
+                                default:
+                                    break;
                         }
                     }
                 }
@@ -81,7 +81,7 @@ public class MainController implements Initializable {
         Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
     }
 
-    private void saveFileChunk(FileRequest fr)  {
+    private void saveFileChunkOnClient(FileRequest fr) throws IOException {
 
         FileMessage fm = fr.getFileMessage();
         String fileName = fm.getFilename();
@@ -89,77 +89,66 @@ public class MainController implements Initializable {
         byte[] data = fm.getData();
 
         Path path = Paths.get("client_storage/" + fileName);
-        try {
-            RandomAccessFile raf = new RandomAccessFile(path.toFile(), "rw");
-            raf.seek(offset);
-            raf.write(data);
-            raf.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+        utils.writeBytes(offset, data, path);
 
         FileMessage fileMessage = new FileMessage(fileName,offset + Constants.FRAME_CHUNK_SIZE);
-        FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK, fileMessage);
+        FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileMessage);
 
         Network.sendMsg(fileRequest);
 
-    }
-
-    private void receiveFrames(FileRequest fm) throws IOException {
-        Utils.processBytes(fm.getFileMessage(), "client_storage/");
     }
 
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
             FileMessage fm = new FileMessage(fileName, 0L);
-            FileRequest fr = new FileRequest(FileCommand.SEND_FILE_CHUNK, fm);
+            FileRequest fr = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fm);
 
             Network.sendMsg(fr);
         }
     }
 
-    public void pressOnSendData(ActionEvent actionEvent) {
+    public void pressOnSendFileToServer(ActionEvent actionEvent) {
 
         String fileName = filesListClient.getSelectionModel().getSelectedItem();
         if (fileName != null ) {
-            Path path = Paths.get("client_storage/" + fileName);
             try {
-                if ( Files.size(path) > Constants.FRAME_SIZE ) {
-                    Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
-                    sendClientDataFrames(path);
-                    Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
-                }
-                else {
-                    Network.sendMsg(new FileRequest(FileCommand.SEND, new FileMessage(path)));
-                }
-
+                Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
+                sendFileChunksToServer(new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_SERVER, new FileMessage(fileName, 0L)));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private void sendClientDataFrames(Path path) throws IOException {
+    private void sendFileChunksToServer(FileRequest fr) throws IOException {
 
-        byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
-        FileInputStream fis = new FileInputStream(path.toFile());
-        int read = 0;
-        FileMessage fileMessage = new FileMessage(path, byteBuf, 1);
-        FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
+        String fileName = fr.getFileMessage().getFilename();
+        Path path = Paths.get("client_storage/" + fileName);
+        if (Files.exists(path)) {
 
-        while((read = fis.read(byteBuf)) > 0) {
-            if (read < Constants.FRAME_CHUNK_SIZE ) {
-                byteBuf = Arrays.copyOf(byteBuf, read);
-                fileMessage.setData(byteBuf);
+
+            RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r");
+            long offset = fr.getFileMessage().getOffset();
+            long length = raf.length();
+
+            if ( utils.isFileChunksCompleted(raf, offset, length)) {
+                Network.sendMsg(new FileRequest(FileCommand.FILE_CHUNK_COMPLETED));
+                return;
             }
+
+
+            byte[] byteBuf = utils.readBytes(raf, offset, length);
+
+            FileMessage fileMessage = new FileMessage(fileName, byteBuf, offset);
+            FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileMessage);
+
             Network.sendMsg(fileRequest);
-            fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
 
         }
-
-        fis.close();
     }
+
 
     private void refreshLocalFilesList() {
         if (Platform.isFxApplicationThread()) {
@@ -246,6 +235,7 @@ public class MainController implements Initializable {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
             Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
+            Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
         }
     }
 }

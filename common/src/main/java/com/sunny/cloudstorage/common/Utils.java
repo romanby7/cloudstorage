@@ -1,30 +1,41 @@
 package com.sunny.cloudstorage.common;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.io.RandomAccessFile;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 
-public final class Utils {
 
-    public static void processBytes(FileMessage fm, String pathPart) {
-        Path path = Paths.get(pathPart + fm.getFilename());
-        byte[] data = fm.getData();
+public class Utils {
 
-        System.out.println(pathPart + path.getFileName() + ": " + fm.getMessageNumber());
+    public byte[] readBytes(RandomAccessFile raf, long offset, long length) throws IOException {
 
-        try {
-            if (fm.getOffset() == 0L) {
-                Files.write(path, data, StandardOpenOption.CREATE_NEW);
-            } else {
-                Files.write(path, data, StandardOpenOption.WRITE, StandardOpenOption.APPEND);
-            }
+        byte[] byteBuf;
+        if (length - offset < (long) Constants.FRAME_CHUNK_SIZE) {
+            byteBuf = new byte[(int) (length - offset)];
+        } else {
+            byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
         }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
+        raf.seek(offset);
+        raf.read(byteBuf);
+        raf.close();
+        return byteBuf;
 
+    }
+
+    public void writeBytes(long offset, byte[] data, Path path) throws IOException {
+        RandomAccessFile raf = new RandomAccessFile(path.toFile(), "rw");
+        raf.seek(offset);
+        raf.write(data);
+        raf.close();
+    }
+
+    public boolean isFileChunksCompleted(RandomAccessFile raf, long offset, long length) throws IOException {
+        if ( offset > length)
+        {
+            raf.close();
+            return true;
+        }
+        return false;
     }
 
 }
