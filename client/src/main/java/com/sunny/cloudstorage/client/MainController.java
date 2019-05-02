@@ -125,8 +125,7 @@ public class MainController implements Initializable {
         if (fileName != null ) {
             Path path = Paths.get("client_storage/" + fileName);
             try {
-                long fileSize = Files.size(path);
-                if ( fileSize > Constants.FRAME_SIZE ) {
+                if ( Files.size(path) > Constants.FRAME_SIZE ) {
                     Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
                     sendClientDataFrames(path);
                     Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));

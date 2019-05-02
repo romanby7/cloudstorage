@@ -121,13 +121,12 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             }
             raf.seek(offset);
             raf.read(byteBuf);
+            raf.close();
 
             FileMessage fileMessage = new FileMessage(fileName, byteBuf, offset);
             FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK, fileMessage);
 
             ctx.writeAndFlush(fileRequest);
-
-            raf.close();
 
         }
     }
