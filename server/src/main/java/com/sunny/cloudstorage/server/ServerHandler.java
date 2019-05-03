@@ -25,7 +25,7 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             if (msg instanceof FileRequest) {
                 FileRequest fr = (FileRequest) msg;
                 switch (fr.getFileCommand()) {
-                    case LIST_FILES:
+                    case LIST_SERVER_FILES:
                         listFilesOnServer(ctx);
                         break;
                     case DELETE:
@@ -113,9 +113,9 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             e.printStackTrace();
         }
 
-        FilesListMessage filesListMessage = new FilesListMessage(filesList);
-        ctx.writeAndFlush(filesListMessage);
-
+        FileMessage fm = new FileMessage(filesList);
+        FileRequest fr = new FileRequest(FileCommand.LIST_SERVER_FILES, fm);
+        ctx.writeAndFlush(fr);
     }
 
     @Override

@@ -4,6 +4,7 @@ public class FileMessage extends AbstractMessage {
     private String filename;
     private byte[] data;
     private long offset;
+    private Object auxData;
 
     public String getFilename() {
         return filename;
@@ -17,6 +18,10 @@ public class FileMessage extends AbstractMessage {
         return offset;
     }
 
+    public Object getAuxData() {
+        return auxData;
+    }
+
     public FileMessage(String filename, byte[] data, long offset) {
         this.filename = filename;
         this.data = data;
@@ -26,5 +31,9 @@ public class FileMessage extends AbstractMessage {
     public FileMessage(String filename, long offset) {
         this.filename = filename;
         this.offset = offset;
+    }
+
+    public FileMessage(Object auxData) {
+        this.auxData = auxData;
     }
 }

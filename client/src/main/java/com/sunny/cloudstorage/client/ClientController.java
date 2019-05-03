@@ -16,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -42,17 +43,19 @@ public class ClientController implements Initializable {
                         Files.write(Paths.get("client_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
                         refreshLocalFilesList();
                     }
-                    if (am instanceof FilesListMessage) {
-                        FilesListMessage flm = (FilesListMessage) am;
-                        refreshServerFilesList(flm.getFilesList());
-                    }
+//                    if (am instanceof FilesListMessage) {
+//                        FilesListMessage flm = (FilesListMessage) am;
+//                        refreshServerFilesList(flm.getFilesList());
+//                    }
                     if (am instanceof FileRequest) {
                         FileRequest fr = (FileRequest) am;
                         switch (fr.getFileCommand()) {
                             case DELETE:
                                 deleteFile(fr.getFilename());
                                 break;
-                            case LIST_FILES:
+                            case LIST_SERVER_FILES:
+                                refreshServerFilesList((ArrayList<String>)fr.getFileMessage().getAuxData());
+                            case LIST_CLIENT_FILES:
                                 refreshLocalFilesList();
                                 break;
                             case SEND_FILE_CHUNK_TO_CLIENT:
@@ -78,7 +81,7 @@ public class ClientController implements Initializable {
         t.setDaemon(true);
         t.start();
         refreshLocalFilesList();
-        Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
+        Network.sendMsg(new FileRequest(FileCommand.LIST_SERVER_FILES));
     }
 
     private void saveFileChunkOnClient(FileRequest fr) throws IOException {
@@ -235,7 +238,7 @@ public class ClientController implements Initializable {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
             Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
-            Network.sendMsg(new FileRequest(FileCommand.LIST_FILES));
+            Network.sendMsg(new FileRequest(FileCommand.LIST_SERVER_FILES));
         }
     }
 }

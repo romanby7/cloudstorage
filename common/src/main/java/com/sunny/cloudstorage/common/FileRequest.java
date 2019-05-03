@@ -9,7 +9,6 @@ public class FileRequest extends AbstractMessage {
         return fileMessage;
     }
 
-
     public String getFilename() {
         return filename;
     }
