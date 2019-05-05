@@ -1,5 +1,7 @@
 package com.sunny.cloudstorage.common;
 
+import io.netty.util.ReferenceCounted;
+
 import java.util.List;
 
 public class FilesListMessage extends AbstractMessage {
@@ -12,5 +14,15 @@ public class FilesListMessage extends AbstractMessage {
 
     public FilesListMessage(List<String> filesList) {
         this.filesList = filesList;
+    }
+
+    @Override
+    protected void deallocate() {
+        this.filesList = null;
+    }
+
+    @Override
+    public ReferenceCounted touch(Object hint) {
+        return this;
     }
 }

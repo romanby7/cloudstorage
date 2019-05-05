@@ -5,6 +5,8 @@ import com.sunny.cloudstorage.common.*;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -66,21 +68,32 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
     private void sendServerDataFrames(ChannelHandlerContext ctx, Path path) throws IOException {
         byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
 
-        FileMessage fileMessage = new FileMessage(path, byteBuf, 1);
-        FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
-
         FileInputStream fis = new FileInputStream(path.toFile());
         int read;
+        int messageNumber = 1;
         while ((read = fis.read(byteBuf)) > 0) {
             if (read < Constants.FRAME_CHUNK_SIZE) {
                 byteBuf = Arrays.copyOf(byteBuf, read);
-                fileMessage.setData(byteBuf);
+
             }
-            ctx.writeAndFlush(fileRequest);
-            fileMessage.setMessageNumber(fileMessage.getMessageNumber() + 1);
+            FileMessage fileMessage = new FileMessage(path, byteBuf, messageNumber);
+            FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
+
+            ctx.writeAndFlush(fileRequest).addListener(new GenericFutureListener<Future<Object>>() {
+                @Override
+                public void operationComplete(Future<Object> future) throws Exception {
+                    if (future.isSuccess()) {
+                        System.out.println("Data written succesfully");
+                    } else {
+                        System.out.println("Data failed to write:");
+                        future.cause().printStackTrace();
+                    }
+                }
+            }) ;
+            messageNumber++;
         }
 
-        System.out.println("server_storage/" + path.getFileName() +  ", server last frame number: " + fileMessage.getMessageNumber());
+        System.out.println("server_storage/" + path.getFileName() +  ", server last frame number: " + --messageNumber);
         System.out.println("server_storage/" + path.getFileName() +  ": closing file stream.");
 
         fis.close();

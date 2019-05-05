@@ -2,6 +2,7 @@ package com.sunny.cloudstorage.client;
 
 
 import com.sunny.cloudstorage.common.*;
+import io.netty.util.ReferenceCountUtil;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -61,6 +62,7 @@ public class MainController implements Initializable {
                                 break;
                         }
                     }
+                    ReferenceCountUtil.release(am);
                 }
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
