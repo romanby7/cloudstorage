@@ -24,6 +24,7 @@ public class ClientController implements Initializable {
 
     final private FileChooser fileChooser = new FileChooser();
     final private Utils utils = new Utils();
+    final private Client client = new Client();
 
     @FXML
     ListView<String> filesListServer;
@@ -33,7 +34,11 @@ public class ClientController implements Initializable {
 
     @Override
     public void initialize(URL location, ResourceBundle resources) {
-        Network.start();
+        try {
+            client.start(this);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         Thread t = new Thread(() -> {
             try {
                 while (true) {
@@ -75,7 +80,7 @@ public class ClientController implements Initializable {
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
             } finally {
-                Network.stop();
+                client.stop();
             }
         });
         t.setDaemon(true);
@@ -84,7 +89,7 @@ public class ClientController implements Initializable {
         Network.sendMsg(new FileRequest(FileCommand.LIST_SERVER_FILES));
     }
 
-    private void saveFileChunkOnClient(FileRequest fr) throws IOException {
+    protected void saveFileChunkOnClient(FileRequest fr) throws IOException {
 
         FileMessage fm = fr.getFileMessage();
         String fileName = fm.getFilename();
@@ -137,7 +142,7 @@ public class ClientController implements Initializable {
             long length = raf.length();
 
             if ( utils.isFileChunksCompleted(raf, offset, length)) {
-                Network.sendMsg(new FileRequest(FileCommand.FILE_CHUNK_COMPLETED));
+                clientsendMsg(new FileRequest(FileCommand.FILE_CHUNK_COMPLETED));
                 return;
             }
 
@@ -153,7 +158,7 @@ public class ClientController implements Initializable {
     }
 
 
-    private void refreshLocalFilesList() {
+    protected void refreshLocalFilesList() {
         if (Platform.isFxApplicationThread()) {
             updateFilesList();
         } else {
@@ -185,7 +190,7 @@ public class ClientController implements Initializable {
 
     }
 
-    private void refreshServerFilesList(List<String> list) {
+    protected void refreshServerFilesList(List<String> list) {
         if (Platform.isFxApplicationThread()) {
             updateServerFilesList(list);
         } else {
@@ -201,7 +206,7 @@ public class ClientController implements Initializable {
 
     }
 
-    private void deleteFile(String fileName) {
+    protected void deleteFile(String fileName) {
         if (fileName == null) {
             return;
         }
