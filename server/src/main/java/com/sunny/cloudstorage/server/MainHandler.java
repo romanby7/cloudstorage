@@ -56,7 +56,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         Path path = Paths.get("server_storage/" + fileName);
         if (Files.exists(path)) {
             if (Files.size(path) > Constants.FRAME_SIZE) {
-                sendServerDataFrames(ctx, path);
+                sendServerDataFrames(ctx, fileName);
                 ctx.writeAndFlush(new FileRequest(FileCommand.LIST_FILES));
             } else {
                 FileMessage fm = new FileMessage(path);
@@ -65,20 +65,23 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    private void sendServerDataFrames(ChannelHandlerContext ctx, Path path) throws IOException {
+    private void sendServerDataFrames(ChannelHandlerContext ctx, String fileName) throws IOException {
         byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
+        Path path = Paths.get("server_storage/" + fileName);
 
         FileInputStream fis = new FileInputStream(path.toFile());
         int read;
         int messageNumber = 1;
+
+        FileMessage fileMessage = new FileMessage(fileName, byteBuf, messageNumber);
+        FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
+
         while ((read = fis.read(byteBuf)) > 0) {
             if (read < Constants.FRAME_CHUNK_SIZE) {
                 byteBuf = Arrays.copyOf(byteBuf, read);
-
             }
-            FileMessage fileMessage = new FileMessage(path, byteBuf, messageNumber);
-            FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
 
+            fileMessage.setData(byteBuf);
             ctx.writeAndFlush(fileRequest).addListener(new GenericFutureListener<Future<Object>>() {
                 @Override
                 public void operationComplete(Future<Object> future) throws Exception {
@@ -91,10 +94,10 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                 }
             }) ;
             messageNumber++;
+            fileMessage.setMessageNumber(messageNumber);
+            fileMessage.retain();
+            fileRequest.retain();
         }
-
-        System.out.println("server_storage/" + path.getFileName() +  ", server last frame number: " + --messageNumber);
-        System.out.println("server_storage/" + path.getFileName() +  ": closing file stream.");
 
         fis.close();
     }

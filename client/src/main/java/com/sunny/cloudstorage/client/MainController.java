@@ -115,7 +115,7 @@ public class MainController implements Initializable {
         byte[] byteBuf = new byte[Constants.FRAME_CHUNK_SIZE];
         FileInputStream fis = new FileInputStream(path.toFile());
         int read = 0;
-        FileMessage fileMessage = new FileMessage(path, byteBuf, 1);
+        FileMessage fileMessage = new FileMessage(path.toFile().getName(), byteBuf, 1);
         FileRequest fileRequest = new FileRequest(FileCommand.SEND_PARTIAL_DATA, fileMessage);
 
         while((read = fis.read(byteBuf)) > 0) {

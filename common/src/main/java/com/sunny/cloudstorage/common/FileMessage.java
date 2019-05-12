@@ -36,8 +36,8 @@ public class FileMessage extends AbstractMessage {
         data = Files.readAllBytes(path);
     }
 
-    public FileMessage(Path path, byte[] data, int messageNumber) {
-        this.filename = path.getFileName().toString();;
+    public FileMessage(String filename, byte[] data, int messageNumber) {
+        this.filename = filename;
         this.data = data;
         this.messageNumber = messageNumber;
     }
