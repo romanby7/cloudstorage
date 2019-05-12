@@ -1,7 +1,5 @@
 package com.sunny.cloudstorage.common;
 
-import io.netty.util.ReferenceCounted;
-
 public class FileRequest extends AbstractMessage {
     private String filename;
     private FileCommand fileCommand;
@@ -33,18 +31,18 @@ public class FileRequest extends AbstractMessage {
         this.fileMessage = fileMessage;
     }
 
-    @Override
-    protected void deallocate() {
-        if (this.fileMessage != null && this.fileMessage.getData() != null) {
-            this.fileMessage.setData(null);
-        }
-        this.fileMessage = null;
-        this.fileCommand = null;
-
-    }
-
-    @Override
-    public ReferenceCounted touch(Object hint) {
-        return this;
-    }
+//    @Override
+//    protected void deallocate() {
+//        if (this.fileMessage != null && this.fileMessage.getData() != null) {
+//            this.fileMessage.setData(null);
+//        }
+//        this.fileMessage = null;
+//        this.fileCommand = null;
+//
+//    }
+//
+//    @Override
+//    public ReferenceCounted touch(Object hint) {
+//        return this;
+//    }
 }

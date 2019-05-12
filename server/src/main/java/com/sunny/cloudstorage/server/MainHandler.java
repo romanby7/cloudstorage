@@ -95,8 +95,6 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
             }) ;
             messageNumber++;
             fileMessage.setMessageNumber(messageNumber);
-            fileMessage.retain();
-            fileRequest.retain();
         }
 
         fis.close();

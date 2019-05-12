@@ -1,7 +1,5 @@
 package com.sunny.cloudstorage.common;
 
-import io.netty.util.ReferenceCounted;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,14 +40,14 @@ public class FileMessage extends AbstractMessage {
         this.messageNumber = messageNumber;
     }
 
-    @Override
-    protected void deallocate() {
-        this.data = null;
-        this.filename = null;
-    }
-
-    @Override
-    public ReferenceCounted touch(Object hint) {
-        return this;
-    }
+//    @Override
+//    protected void deallocate() {
+//        this.data = null;
+//        this.filename = null;
+//    }
+//
+//    @Override
+//    public ReferenceCounted touch(Object hint) {
+//        return this;
+//    }
 }
