@@ -8,6 +8,7 @@ public class FileMessage extends AbstractMessage {
     private String filename;
     private byte[] data;
     private int messageNumber;
+    private FileCommand fileCommand;
 
     public String getFilename() {
         return filename;
