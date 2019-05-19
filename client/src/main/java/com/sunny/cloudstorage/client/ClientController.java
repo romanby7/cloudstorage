@@ -15,7 +15,6 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -40,29 +39,24 @@ public class ClientController implements Initializable {
                     AbstractMessage am = Network.readObject();
                     if (am instanceof FileMessage) {
                         FileMessage fm = (FileMessage) am;
-                        Files.write(Paths.get("client_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
-                        refreshLocalFilesList();
-                    }
-                    if (am instanceof FileRequest) {
-                        FileRequest fr = (FileRequest) am;
 
-                        switch (fr.getFileCommand()) {
+                        switch (fm.getFileCommand()) {
                             case DELETE:
-                                deleteFile(fr.getFilename());
+                                deleteFile(fm.getFilename());
                                 break;
                             case LIST_SERVER_FILES:
-                                refreshServerFilesList((ArrayList<String>)fr.getFileMessage().getAuxData());
+                                refreshServerFilesList((ArrayList<String>)fm.getAuxData());
                             case LIST_CLIENT_FILES:
                                 refreshLocalFilesList();
                                 break;
                             case SEND_FILE_CHUNK_TO_CLIENT:
-                                saveFileChunkOnClient(fr);
+                                saveFileChunkOnClient(fm);
                                 break;
                             case FILE_CHUNK_COMPLETED:
                                 refreshLocalFilesList();
                                 break;
                             case SEND_FILE_CHUNK_TO_SERVER:
-                                sendFileChunksToServer(fr);
+                                sendFileChunksToServer(fm);
                                 break;
                             default:
                                 break;
@@ -78,12 +72,11 @@ public class ClientController implements Initializable {
         t.setDaemon(true);
         t.start();
         refreshLocalFilesList();
-        Network.sendMsg(new FileRequest(FileCommand.LIST_SERVER_FILES));
+        Network.sendMsg(new FileMessage(FileCommand.LIST_SERVER_FILES));
     }
 
-    private void saveFileChunkOnClient(FileRequest fr) throws IOException {
+    private void saveFileChunkOnClient(FileMessage fm) throws IOException {
 
-        FileMessage fm = fr.getFileMessage();
         String fileName = fm.getFilename();
         long offset = fm.getOffset();
         byte[] data = fm.getData();
@@ -92,20 +85,18 @@ public class ClientController implements Initializable {
 
         utils.writeBytes(offset, data, path);
 
-        FileMessage fileMessage = new FileMessage(fileName,offset + Constants.FRAME_CHUNK_SIZE);
-        FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileMessage);
+        FileMessage fileMessage = new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileName,offset + Constants.FRAME_CHUNK_SIZE);
 
-        Network.sendMsg(fileRequest);
+        Network.sendMsg(fileMessage);
 
     }
 
     public void pressOnDownloadBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
-            FileMessage fm = new FileMessage(fileName, 0L);
-            FileRequest fr = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fm);
+            FileMessage fm = new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileName,0L);
 
-            Network.sendMsg(fr);
+            Network.sendMsg(fm);
         }
     }
 
@@ -114,41 +105,37 @@ public class ClientController implements Initializable {
         String fileName = filesListClient.getSelectionModel().getSelectedItem();
         if (fileName != null ) {
             try {
-                Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
-                sendFileChunksToServer(new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_SERVER, new FileMessage(fileName, 0L)));
+                Network.sendMsg(new FileMessage(FileCommand.DELETE, fileName));
+                sendFileChunksToServer(new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileName, 0L));
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private void sendFileChunksToServer(FileRequest fr) throws IOException {
+    private void sendFileChunksToServer(FileMessage fm) throws IOException {
 
-        String fileName = fr.getFileMessage().getFilename();
+        String fileName = fm.getFilename();
         Path path = Paths.get("client_storage/" + fileName);
         if (Files.exists(path)) {
 
-
             RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r");
-            long offset = fr.getFileMessage().getOffset();
+            long offset = fm.getOffset();
             long length = raf.length();
 
             if ( utils.isFileChunksCompleted(raf, offset, length)) {
-                Network.sendMsg(new FileRequest(FileCommand.FILE_CHUNK_COMPLETED));
+                Network.sendMsg(new FileMessage(FileCommand.FILE_CHUNK_COMPLETED));
                 return;
             }
 
-
             byte[] byteBuf = utils.readBytes(raf, offset, length);
 
-            FileMessage fileMessage = new FileMessage(fileName, byteBuf, offset);
-            FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileMessage);
+            FileMessage fileMessage = new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileName, byteBuf, offset);
 
-            Network.sendMsg(fileRequest);
+            Network.sendMsg(fileMessage);
 
         }
     }
-
 
     private void refreshLocalFilesList() {
         if (Platform.isFxApplicationThread()) {
@@ -234,8 +221,8 @@ public class ClientController implements Initializable {
     public void pressOnDeleteOnServerBtn(ActionEvent actionEvent) {
         String fileName = filesListServer.getSelectionModel().getSelectedItem();
         if (fileName != null) {
-            Network.sendMsg(new FileRequest(FileCommand.DELETE, fileName));
-            Network.sendMsg(new FileRequest(FileCommand.LIST_SERVER_FILES));
+            Network.sendMsg(new FileMessage(FileCommand.DELETE, fileName));
+            Network.sendMsg(new FileMessage(FileCommand.LIST_SERVER_FILES));
         }
     }
 }

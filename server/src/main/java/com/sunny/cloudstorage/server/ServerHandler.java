@@ -1,6 +1,9 @@
 package com.sunny.cloudstorage.server;
 
-import com.sunny.cloudstorage.common.*;
+import com.sunny.cloudstorage.common.Constants;
+import com.sunny.cloudstorage.common.FileCommand;
+import com.sunny.cloudstorage.common.FileMessage;
+import com.sunny.cloudstorage.common.Utils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
@@ -22,26 +25,26 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             if (msg == null) {
                 return;
             }
-            if (msg instanceof FileRequest) {
-                FileRequest fr = (FileRequest) msg;
-                switch (fr.getFileCommand()) {
+            if (msg instanceof FileMessage) {
+                FileMessage fm = (FileMessage) msg;
+                switch (fm.getFileCommand()) {
                     case LIST_SERVER_FILES:
                         listFilesOnServer(ctx);
                         break;
                     case DELETE:
-                        deleteFileOnServer(fr);
+                        deleteFileOnServer(fm);
                         break;
                     case SEND_FILE_CHUNK_TO_CLIENT:
-                        sendFileChunkToClient(ctx, fr);
+                        sendFileChunkToClient(ctx, fm);
                         break;
                     case SEND_FILE_CHUNK_TO_SERVER:
-                        saveFileChunkOnServer(ctx, fr);
+                        saveFileChunkOnServer(ctx, fm);
                         break;
                     case FILE_CHUNK_COMPLETED:
                         listFilesOnServer(ctx);
                         break;
-                        default:
-                            break;
+                    default:
+                        break;
                 }
             }
         } finally {
@@ -49,9 +52,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    private void saveFileChunkOnServer(ChannelHandlerContext ctx, FileRequest fr) throws IOException {
+    private void saveFileChunkOnServer(ChannelHandlerContext ctx, FileMessage fm) throws IOException {
 
-        FileMessage fm = fr.getFileMessage();
         String fileName = fm.getFilename();
         long offset = fm.getOffset();
         byte[] data = fm.getData();
@@ -63,39 +65,37 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
         raf.write(data);
         raf.close();
 
-        FileMessage fileMessage = new FileMessage(fileName,offset + Constants.FRAME_CHUNK_SIZE);
-        FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileMessage);
+        FileMessage fileMessage = new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_SERVER, fileName, offset + Constants.FRAME_CHUNK_SIZE);
 
-        ctx.writeAndFlush(fileRequest);
+        ctx.writeAndFlush(fileMessage);
 
     }
 
-    private void sendFileChunkToClient(ChannelHandlerContext ctx, FileRequest fr) throws IOException {
+    private void sendFileChunkToClient(ChannelHandlerContext ctx, FileMessage fm) throws IOException {
 
-        String fileName = fr.getFileMessage().getFilename();
+        String fileName = fm.getFilename();
         Path path = Paths.get("server_storage/" + fileName);
         if (Files.exists(path)) {
 
             RandomAccessFile raf = new RandomAccessFile(path.toFile(), "r");
-            long offset = fr.getFileMessage().getOffset();
+            long offset = fm.getOffset();
             long length = raf.length();
             if ( utils.isFileChunksCompleted(raf, offset, length)) {
-                ctx.writeAndFlush(new FileRequest(FileCommand.FILE_CHUNK_COMPLETED));
+                ctx.writeAndFlush(new FileMessage(FileCommand.FILE_CHUNK_COMPLETED));
                 return;
             }
 
             byte[] byteBuf = utils.readBytes(raf, offset, length);
 
-            FileMessage fileMessage = new FileMessage(fileName, byteBuf, offset);
-            FileRequest fileRequest = new FileRequest(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileMessage);
+            FileMessage fileMessage = new FileMessage(FileCommand.SEND_FILE_CHUNK_TO_CLIENT, fileName, byteBuf, offset);
 
-            ctx.writeAndFlush(fileRequest);
+            ctx.writeAndFlush(fileMessage);
 
         }
     }
 
-    private void deleteFileOnServer(FileRequest fr) {
-        String path = "server_storage/" + fr.getFilename();
+    private void deleteFileOnServer(FileMessage fm) {
+        String path = "server_storage/" + fm.getFilename();
         try {
             if (Files.exists(Paths.get(path))) {
                 Files.delete(Paths.get(path));
@@ -113,9 +113,8 @@ public class ServerHandler extends ChannelInboundHandlerAdapter {
             e.printStackTrace();
         }
 
-        FileMessage fm = new FileMessage(filesList);
-        FileRequest fr = new FileRequest(FileCommand.LIST_SERVER_FILES, fm);
-        ctx.writeAndFlush(fr);
+        FileMessage fm = new FileMessage(FileCommand.LIST_SERVER_FILES, filesList);
+        ctx.writeAndFlush(fm);
     }
 
     @Override

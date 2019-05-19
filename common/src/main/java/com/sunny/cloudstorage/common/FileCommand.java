@@ -1,6 +1,8 @@
 package com.sunny.cloudstorage.common;
 
-public enum FileCommand {
+import java.io.Serializable;
+
+public enum FileCommand implements Serializable {
     LIST_CLIENT_FILES,
     LIST_SERVER_FILES,
     DELETE,
