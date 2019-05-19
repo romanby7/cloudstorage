@@ -43,12 +43,9 @@ public class ClientController implements Initializable {
                         Files.write(Paths.get("client_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
                         refreshLocalFilesList();
                     }
-//                    if (am instanceof FilesListMessage) {
-//                        FilesListMessage flm = (FilesListMessage) am;
-//                        refreshServerFilesList(flm.getFilesList());
-//                    }
                     if (am instanceof FileRequest) {
                         FileRequest fr = (FileRequest) am;
+
                         switch (fr.getFileCommand()) {
                             case DELETE:
                                 deleteFile(fr.getFilename());
@@ -67,8 +64,8 @@ public class ClientController implements Initializable {
                             case SEND_FILE_CHUNK_TO_SERVER:
                                 sendFileChunksToServer(fr);
                                 break;
-                                default:
-                                    break;
+                            default:
+                                break;
                         }
                     }
                 }
