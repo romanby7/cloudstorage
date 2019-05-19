@@ -16,6 +16,7 @@ public class Network {
     public static void start() {
         try {
             socket = new Socket("localhost", 8189);
+            socket.setTcpNoDelay(true);
             out = new ObjectEncoderOutputStream(socket.getOutputStream());
             in = new ObjectDecoderInputStream(socket.getInputStream(), Constants.FRAME_SIZE);
         } catch (IOException e) {

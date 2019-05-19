@@ -30,7 +30,15 @@ public class Server {
                             );
                         }
                     })
-                    .childOption(ChannelOption.SO_KEEPALIVE, true);
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
+                    .childOption(ChannelOption.SO_RCVBUF, 1024 * 1024)
+                    .childOption(ChannelOption.SO_SNDBUF, 1024 * 1024)
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .childOption(ChannelOption.TCP_NODELAY, true);
+
+
+
+
 
             ChannelFuture future = b.bind(8189).sync();
             future.channel().closeFuture().sync();

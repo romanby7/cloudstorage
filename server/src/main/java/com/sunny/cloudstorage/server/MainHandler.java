@@ -86,7 +86,7 @@ public class MainHandler extends ChannelInboundHandlerAdapter {
                 @Override
                 public void operationComplete(Future<Object> future) throws Exception {
                     if (future.isSuccess()) {
-                        System.out.println("Data written succesfully");
+                        System.out.println("Data written successfully");
                     } else {
                         System.out.println("Data failed to write:");
                         future.cause().printStackTrace();
